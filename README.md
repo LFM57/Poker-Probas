@@ -14,7 +14,7 @@ A high-performance Python Poker Calculator that computes winning probabilities (
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/your-username/poker-probas.git
+    git clone https://github.com/LFM57/Poker-Probas.git
     cd poker-probas
     ```
 
