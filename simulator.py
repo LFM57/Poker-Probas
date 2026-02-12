@@ -97,6 +97,9 @@ class Simulateur:
             victoires = 0
             pool = [c for c in cartes_testables if c != carte_future]
             
+            # Calcul du score héro une seule fois pour ce tableau futur
+            mon_score = EvaluateurFast.evaluer_7_cartes(ma_main + tableau_futur)[1]
+
             for _ in range(base_iterations):
                 random.shuffle(pool)
                 idx = 0
@@ -106,7 +109,6 @@ class Simulateur:
                     mains_actives.append([pool[idx], pool[idx+1]])
                     idx += 2
                 
-                mon_score = EvaluateurFast.evaluer_7_cartes(ma_main + tableau_futur)[1]
                 gagne = True
                 partage = False
                 for m_adv in mains_actives:
