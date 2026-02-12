@@ -52,7 +52,3 @@ Open your browser and go to `http://127.0.0.1:5000`.
 ## Contributing
 
 Feel free to open issues or submit pull requests to improve the simulator's speed or accuracy.
-
-## License
-
-[MIT](LICENSE)
