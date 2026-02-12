@@ -52,7 +52,8 @@ def main():
         print(f"Probabilité de toucher un out au prochain tour : {prob_out:.2f}%")
 
     print("\nSIMULATION MONTE CARLO (10 000 itérations)...")
-    win, tie, mains_stats = Simulateur.simuler(ma_main, tableau, nb_adv, exclues)
+    profils = ['random'] * nb_adv
+    win, tie, _, mains_stats = Simulateur.simuler(ma_main, tableau, profils, exclues)
 
     print("\n--- PROBABILITÉS DE VICTOIRE ---")
     print(f"VICTOIRE : {win:.2f}%")
