@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Pro Probas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #1a1a1a; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-slot { width: 60px; height: 85px; border: 2px dashed #444; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin: 5px; cursor: pointer; font-weight: bold; font-size: 1.2rem; transition: all 0.2s; background: #252525; }
+        .card-slot.active { border-color: #0d6efd; box-shadow: 0 0 10px rgba(13, 110, 253, 0.5); }
+        .card-slot.filled { border-style: solid; background: white; color: black; border-color: #ddd; }
+        .card-slot.filled.h, .card-slot.filled.d { color: #d9534f; }
+        .card-slot.filled.s, .card-slot.filled.c { color: #333; }
+        
+        .card-picker-item { width: 45px; height: 65px; border: 1px solid #333; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; margin: 2px; cursor: pointer; background: white; color: black; font-size: 0.9rem; }
+        .card-picker-item:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+        .card-picker-item.used { opacity: 0.2; pointer-events: none; }
+        .card-picker-item.h, .card-picker-item.d { color: #d9534f; }
+        .card-picker-item.s, .card-picker-item.c { color: #333; }
+        
+        .result-bar { height: 25px; border-radius: 12px; }
+        .stats-card { background: #2d2d2d; border: none; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
+        .btn-primary { border-radius: 25px; padding: 10px 30px; font-weight: bold; }
+        h2, h4 { color: #0d6efd; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <header class="text-center mb-5">
+            <h1 class="display-4 fw-bold">Poker Pro <span class="text-primary">Calculateur</span></h1>
+            <p class="lead">Analyse de probabilités en temps réel</p>
+        </header>
+
+        <div class="row">
+            <!-- Panneau de Gauche : Sélection -->
+            <div class="col-lg-7">
+                <div class="stats-card">
+                    <h4>1. Votre Main</h4>
+                    <div id="ma-main-slots">
+                        <div class="card-slot active" onclick="setActiveSlot(this, 'ma_main', 0)">?</div>
+                        <div class="card-slot" onclick="setActiveSlot(this, 'ma_main', 1)">?</div>
+                    </div>
+
+                    <h4 class="mt-4">2. Le Tableau</h4>
+                    <div id="tableau-slots">
+                        <div class="card-slot" onclick="setActiveSlot(this, 'tableau', 0)">?</div>
+                        <div class="card-slot" onclick="setActiveSlot(this, 'tableau', 1)">?</div>
+                        <div class="card-slot" onclick="setActiveSlot(this, 'tableau', 2)">?</div>
+                        <div class="card-slot" onclick="setActiveSlot(this, 'tableau', 3)">?</div>
+                        <div class="card-slot" onclick="setActiveSlot(this, 'tableau', 4)">?</div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h4>3. Adversaires</h4>
+                            <div class="mb-3">
+                                <label class="form-label">Nombre d'adversaires à la table : <span id="nb-adv-val" class="fw-bold">1</span></label>
+                                <input type="range" class="form-range" min="1" max="9" step="1" id="nb-adv" value="1" oninput="document.getElementById('nb-adv-val').innerText = this.value">
+                            </div>
+                        </div>
+                        <div class="col-md-12 text-end mt-4">
+                            <button class="btn btn-primary btn-lg w-100" onclick="runSimulation()" id="sim-btn">LANCER L'ANALYSE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <h4>Sélecteur de Cartes</h4>
+                    <div id="card-picker" class="d-flex flex-wrap justify-content-center">
+                        <!-- Généré par JS -->
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary mt-3" onclick="resetAll()">Réinitialiser tout</button>
+                </div>
+            </div>
+
+            <!-- Panneau de Droite : Résultats -->
+            <div class="col-lg-5">
+                <div id="results-area" style="display: none;">
+                    
+                    <!-- Texture du Board -->
+                    <div id="texture-alerts" class="mb-3"></div>
+
+                    <div class="stats-card">
+                        <h4>Analyse des Tirages</h4>
+                        <div id="tirages-container" class="mb-0">
+                            <p class="small text-muted">Aucun tirage majeur détecté.</p>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <h4>Probabilités</h4>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1"><span>Victoire</span><span id="win-val">0%</span></div>
+                            <div class="progress result-bar bg-dark"><div id="win-bar" class="progress-bar bg-success" style="width: 0%"></div></div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1"><span>Égalité</span><span id="tie-val">0%</span></div>
+                            <div class="progress result-bar bg-dark"><div id="tie-bar" class="progress-bar bg-primary" style="width: 0%"></div></div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1"><span>Défaite</span><span id="loss-val">0%</span></div>
+                            <div class="progress result-bar bg-dark"><div id="loss-bar" class="progress-bar bg-danger" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Heatmap -->
+                    <div id="heatmap-container" class="stats-card" style="display:none;">
+                        <h4>Impact des cartes à venir</h4>
+                        <p class="small text-muted mb-2">Le % indique votre <strong>probabilité de victoire</strong> si cette carte tombe au tour suivant.</p>
+                        <div id="heatmap-grid" class="d-flex flex-wrap justify-content-center"></div>
+                    </div>
+
+                    <div class="stats-card">
+                        <h4>Types de Mains Finales</h4>
+                        <div id="mains-stats-container"></div>
+                    </div>
+                </div>
+                
+                <div id="placeholder-results" class="stats-card text-center py-5">
+                    <p class="text-muted">Configurez votre main et lancez la simulation pour voir les résultats.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const suits = { 's': '♠', 'h': '♥', 'd': '♦', 'c': '♣' };
+        const values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+        let selections = { ma_main: [null, null], tableau: [null, null, null, null, null], exclues: [] };
+        let activeSlot = { type: 'ma_main', index: 0 };
+
+        function initPicker() {
+            const picker = document.getElementById('card-picker');
+            picker.innerHTML = '';
+            ['s','h','d','c'].forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'w-100 text-center';
+                values.forEach(v => {
+                    const div = document.createElement('div');
+                    div.className = `card-picker-item ${s}`;
+                    div.innerHTML = `${v}${suits[s]}`;
+                    div.id = `pick-${v}${s}`;
+                    div.onclick = () => selectCard(v, s);
+                    row.appendChild(div);
+                });
+                picker.appendChild(row);
+            });
+        }
+
+        function setActiveSlot(el, type, index) {
+            document.querySelectorAll('.card-slot').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            activeSlot = { type, index };
+        }
+
+        function selectCard(v, s) {
+            const cardCode = v + s;
+            if (isCardUsed(cardCode)) return;
+
+            const oldCard = selections[activeSlot.type][activeSlot.index];
+            if (oldCard) document.getElementById(`pick-${oldCard}`).classList.remove('used');
+
+            selections[activeSlot.type][activeSlot.index] = cardCode;
+            document.getElementById(`pick-${cardCode}`).classList.add('used');
+
+            const slot = document.querySelector(`.card-slot.active`);
+            slot.innerHTML = `${v}${suits[s]}`;
+            slot.className = `card-slot filled ${s}`;
+            
+            moveToNextSlot();
+        }
+
+        function isCardUsed(code) {
+            return selections.ma_main.includes(code) || selections.tableau.includes(code);
+        }
+
+        function moveToNextSlot() {
+            if (activeSlot.type === 'ma_main' && activeSlot.index === 0) {
+                setActiveSlot(document.querySelectorAll('#ma-main-slots .card-slot')[1], 'ma_main', 1);
+            } else if (activeSlot.type === 'ma_main' && activeSlot.index === 1) {
+                setActiveSlot(document.querySelectorAll('#tableau-slots .card-slot')[0], 'tableau', 0);
+            } else if (activeSlot.type === 'tableau' && activeSlot.index < 4) {
+                setActiveSlot(document.querySelectorAll('#tableau-slots .card-slot')[activeSlot.index + 1], 'tableau', activeSlot.index + 1);
+            }
+        }
+
+        async function runSimulation() {
+            if (selections.ma_main.includes(null)) {
+                alert("Veuillez sélectionner vos 2 cartes.");
+                return;
+            }
+
+            const nbAdv = parseInt(document.getElementById('nb-adv').value);
+            const profiles = Array(nbAdv).fill('any');
+            
+            const btn = document.getElementById('sim-btn');
+            btn.disabled = true;
+            btn.innerText = "Calcul...";
+
+            try {
+                const response = await fetch('/simulate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ma_main: selections.ma_main,
+                        tableau: selections.tableau.filter(c => c !== null),
+                        exclues: selections.exclues,
+                        profiles: profiles
+                    })
+                });
+                const res = await response.json();
+                
+                if (res.success) {
+                    showResults(res);
+                } else {
+                    alert("Erreur serveur : " + (res.error || "Inconnue"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erreur lors de la communication avec le serveur.");
+            }
+            
+            btn.disabled = false;
+            btn.innerText = "LANCER L'ANALYSE";
+        }
+
+        function showResults(data) {
+            document.getElementById('placeholder-results').style.display = 'none';
+            document.getElementById('results-area').style.display = 'block';
+
+            // Texture Alerts
+            const alertsDiv = document.getElementById('texture-alerts');
+            alertsDiv.innerHTML = '';
+            if (data.texture && data.texture.length > 0) {
+                data.texture.forEach(msg => {
+                    alertsDiv.innerHTML += `<span class="badge bg-warning text-dark me-2 mb-1" style="font-size:0.9rem"><i class="bi bi-exclamation-triangle"></i> ${msg}</span>`;
+                });
+            }
+
+            // Tirages Groupés
+            const tiragesDiv = document.getElementById('tirages-container');
+            if (data.tirages && data.tirages.length > 0) {
+                tiragesDiv.innerHTML = `
+                    <div class="p-2 mb-3 rounded bg-primary bg-opacity-10 border border-primary border-opacity-25">
+                        <span class="small text-primary fw-bold">PROBABILITÉ DE PROGRESSION GLOBALE</span>
+                        <div class="h3 mb-0">${data.proba_tirage}%</div>
+                        <p class="small text-muted mb-0">Chance de toucher n'importe quel tirage ci-dessous</p>
+                    </div>
+                `;
+                data.tirages.forEach(t => {
+                    const icon = t.type === 'rank' ? '🎯' : '💧';
+                    tiragesDiv.innerHTML += `
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-black">
+                            <span>${icon} <strong>${t.nom}</strong></span>
+                            <span class="badge bg-primary">${t.prob}%</span>
+                        </div>`;
+                });
+            } else {
+                tiragesDiv.innerHTML = '<p class="small text-muted">Aucun tirage significatif détecté.</p>';
+            }
+
+            document.getElementById('win-val').innerText = data.win + '%';
+            document.getElementById('win-bar').style.width = data.win + '%';
+            document.getElementById('tie-val').innerText = data.tie + '%';
+            document.getElementById('tie-bar').style.width = data.tie + '%';
+            document.getElementById('loss-val').innerText = data.loss + '%';
+            document.getElementById('loss-bar').style.width = data.loss + '%';
+            
+            // Heatmap
+            const hmContainer = document.getElementById('heatmap-container');
+            const hmGrid = document.getElementById('heatmap-grid');
+            hmGrid.innerHTML = '';
+            
+            if (data.heatmap && Object.keys(data.heatmap).length > 0) {
+                hmContainer.style.display = 'block';
+                // Trier les cartes par équité
+                const sortedCards = Object.keys(data.heatmap).sort((a, b) => data.heatmap[b] - data.heatmap[a]);
+                const baseWin = data.win;
+                
+                sortedCards.forEach(cardCode => {
+                    const eq = data.heatmap[cardCode];
+                    const diff = eq - baseWin;
+                    let color = '#444';
+                    // Couleur : Vert si > +2%, Rouge si < -2%, Gris sinon
+                    if (diff > 2) color = `rgba(40, 167, 69, ${Math.min(1, diff/15 + 0.3)})`;
+                    else if (diff < -2) color = `rgba(220, 53, 69, ${Math.min(1, Math.abs(diff)/15 + 0.3)})`;
+                    
+                    const s = cardCode.slice(-1);
+                    const v = cardCode.slice(0, -1);
+                    
+                    hmGrid.innerHTML += `
+                        <div class="card-picker-item ${s} d-flex flex-column justify-content-center" 
+                             style="width: 40px; height: 55px; font-size: 0.8rem; margin: 2px; background-color: ${color}; border-color: #555; color: white;">
+                             <span>${v}${suits[s]}</span>
+                             <span style="font-size: 0.6rem;">${eq.toFixed(0)}%</span>
+                        </div>`;
+                });
+            } else {
+                hmContainer.style.display = 'none';
+            }
+
+            // Stats mains (VERSION SIMPLIFIÉE)
+            const statsContainer = document.getElementById('mains-stats-container');
+            statsContainer.innerHTML = '<div class="row text-muted small mb-2"><div class="col-8">Type de Main Finale</div><div class="col-4 text-end">Probabilité</div></div>';
+            
+            const sortedTypes = Object.keys(data.mains_absolues).sort((a, b) => (data.mains_absolues[b] || 0) - (data.mains_absolues[a] || 0));
+
+            sortedTypes.forEach(name => {
+                const abs = data.mains_absolues[name] || 0;
+                
+                // On affiche uniquement si la proba est > 0.1% pour éviter le bruit
+                if (abs > 0.1) {
+                    statsContainer.innerHTML += `
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>${name}</span>
+                            <span class="fw-bold text-white">${abs.toFixed(1)}%</span>
+                        </div>
+                        <div class="progress bg-dark mb-2" style="height: 6px;">
+                            <div class="progress-bar bg-info" style="width: ${abs}%"></div>
+                        </div>`;
+                }
+            });
+        }
+
+        function resetAll() {
+            location.reload();
+        }
+
+        initPicker();
+    </script>
+</body>
+</html>
