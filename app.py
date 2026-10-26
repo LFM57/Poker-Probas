@@ -7,11 +7,14 @@ app = Flask(__name__)
 
 def string_to_cards(card_strings):
     cards = []
+    vus = set()
     for s in card_strings:
         if not s: continue
-        valeur = s[0].upper()
-        couleur = s[1].lower()
-        cards.append(Carte(valeur, couleur))
+        c = Carte.from_str(s)
+        if c in vus:
+            raise ValueError(f"Carte en double détectée : {s}")
+        vus.add(c)
+        cards.append(c)
     return cards
 
 @app.route('/')
@@ -21,13 +24,32 @@ def index():
 @app.route('/simulate', methods=['POST'])
 def simulate():
     try:
-        data = request.json
-        print(f"DEBUG: Data received = {data}") # Log pour voir les données
+        data = request.json or {}
         
         ma_main = string_to_cards(data.get('ma_main', []))
+        if len(ma_main) != 2:
+            return jsonify({'success': False, 'error': "Votre main doit contenir exactement 2 cartes distinctes."})
+
         tableau = string_to_cards(data.get('tableau', []))
+        if len(tableau) not in (0, 3, 4, 5):
+            return jsonify({'success': False, 'error': "Le tableau doit comporter 0 (Pré-flop), 3 (Flop), 4 (Turn) ou 5 (River) cartes."})
+
         exclues = string_to_cards(data.get('exclues', []))
-        profiles = data.get('profiles', ['any'])
+
+        # Vérification des doublons entre zones
+        set_main = set(ma_main)
+        set_tab = set(tableau)
+        set_exc = set(exclues)
+        if (set_main & set_tab) or (set_main & set_exc) or (set_tab & set_exc):
+            return jsonify({'success': False, 'error': "Cartes en double détectées entre votre main, le tableau et les cartes brûlées."})
+
+        raw_profiles = data.get('profiles', ['any'])
+        nb_adv = max(1, min(9, len(raw_profiles)))
+        profiles = ['any'] * nb_adv
+
+        cartes_necessaires = len(ma_main) + 5 + (2 * nb_adv) + len(exclues)
+        if cartes_necessaires > 52:
+            return jsonify({'success': False, 'error': f"Trop de cartes utilisées ({cartes_necessaires} > 52 dans le paquet)."})
         
         # Calcul des outs
         outs_obj = Simulateur.calculer_outs(ma_main, tableau, exclues)

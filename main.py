@@ -5,15 +5,19 @@ from simulator import Simulateur
 def parser_cartes(entree):
     mots = entree.replace(',', ' ').split()
     cartes = []
+    vus = set()
     for mot in mots:
-        if len(mot) < 2: continue
-        valeur = mot[0].upper()
-        couleur = mot[1].lower()
+        if not mot: continue
         try:
-            cartes.append(Carte(valeur, couleur))
+            c = Carte.from_str(mot)
         except ValueError:
             print(f"Erreur : Carte invalide '{mot}'")
             return None
+        if c in vus:
+            print(f"Erreur : Carte en double détectée '{mot}'")
+            return None
+        vus.add(c)
+        cartes.append(c)
     return cartes
 
 def main():
@@ -25,18 +29,48 @@ def main():
         entree_ma_main = input("\nVotre main (ex: Ah Ad) : ")
         ma_main = parser_cartes(entree_ma_main)
         if ma_main and len(ma_main) == 2: break
-        print("Veuillez entrer exactement 2 cartes.")
+        if ma_main is not None:
+            print("Veuillez entrer exactement 2 cartes distinctes.")
 
-    entree_tableau = input("Le tableau (ex: 7h 8h 9h, ou vide) : ")
-    tableau = parser_cartes(entree_tableau) or []
+    while True:
+        entree_tableau = input("Le tableau (ex: 7h 8h 9h, ou vide) : ")
+        tableau = parser_cartes(entree_tableau)
+        if tableau is None:
+            continue
+        if len(tableau) not in (0, 3, 4, 5):
+            print("Le tableau doit contenir 0 (Pré-flop), 3 (Flop), 4 (Turn) ou 5 (River) cartes.")
+            continue
+        conflits = set(tableau) & set(ma_main)
+        if conflits:
+            print(f"Erreur : Cartes déjà dans votre main : {', '.join(str(c) for c in conflits)}")
+            continue
+        break
 
-    entree_exclues = input("Cartes sorties/brûlées (ex: 2c 3d, ou vide) : ")
-    exclues = parser_cartes(entree_exclues) or []
+    while True:
+        entree_exclues = input("Cartes sorties/brûlées (ex: 2c 3d, ou vide) : ")
+        exclues = parser_cartes(entree_exclues)
+        if exclues is None:
+            continue
+        conflits = (set(exclues) & set(ma_main)) | (set(exclues) & set(tableau))
+        if conflits:
+            print(f"Erreur : Cartes déjà utilisées : {', '.join(str(c) for c in conflits)}")
+            continue
+        break
 
-    try:
-        nb_adv = int(input("Nombre d'adversaires : ") or "1")
-    except ValueError:
-        nb_adv = 1
+    while True:
+        entree_adv = input("Nombre d'adversaires (1-9) : ").strip() or "1"
+        try:
+            nb_adv = int(entree_adv)
+            if 1 <= nb_adv <= 9:
+                break
+            print("Le nombre d'adversaires doit être compris entre 1 et 9.")
+        except ValueError:
+            print("Veuillez entrer un nombre entier valide.")
+
+    cartes_necessaires = len(ma_main) + 5 + (2 * nb_adv) + len(exclues)
+    if cartes_necessaires > 52:
+        print(f"Erreur : Trop de cartes demandées ({cartes_necessaires} > 52 dans le paquet).")
+        return
 
     print("\n" + "-"*30)
     print("ANALYSE DES OUTS (Cartes à venir)")
