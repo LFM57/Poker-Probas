@@ -210,28 +210,19 @@ class Simulateur:
         total_mains = [0] * 9
         if cartes_exclues is None: cartes_exclues = []
         
-        cartes_connues = list(ma_main) + list(tableau) + list(cartes_exclues)
+        cartes_connues = set(ma_main) | set(tableau) | set(cartes_exclues)
         paquet_base = Paquet()
-        cartes_restantes = [c for c in paquet_base.cartes if not any(c.valeur == ck.valeur and c.couleur == ck.couleur for ck in cartes_connues)]
+        cartes_restantes = [c for c in paquet_base.cartes if c not in cartes_connues]
         
         nb_adv = len(profils)
         cartes_a_venir = 5 - len(tableau)
-        iterations_reelles = 20000 if iterations == 5000 else iterations 
+        cartes_necessaires = 2 * nb_adv + cartes_a_venir
+        if len(cartes_restantes) < cartes_necessaires or nb_adv < 1:
+            return 0.0, 0.0, {}, {}
         
-        for _ in range(iterations_reelles):
-            random.shuffle(cartes_restantes)
-            idx = 0
-            mains_actives = []
-            
-            for _ in profils:
-                if idx + 2 > len(cartes_restantes): break
-                mains_actives.append([cartes_restantes[idx], cartes_restantes[idx+1]])
-                idx += 2
-
-            tableau_simu = list(tableau)
-            for _ in range(cartes_a_venir):
-                tableau_simu.append(cartes_restantes[idx])
-                idx += 1
+        for _ in range(iterations):
+            sampled = random.sample(cartes_restantes, cartes_necessaires)
+            tableau_simu = list(tableau) + sampled[:cartes_a_venir]
             
             mon_res = EvaluateurFast.evaluer_7_cartes(ma_main + tableau_simu)
             mon_score_total = mon_res[1]
@@ -239,8 +230,10 @@ class Simulateur:
             
             gagne = True
             partage = False
-            for m_adv in mains_actives:
-                adv_res = EvaluateurFast.evaluer_7_cartes(m_adv + tableau_simu)
+            offset = cartes_a_venir
+            for _ in range(nb_adv):
+                adv_res = EvaluateurFast.evaluer_7_cartes([sampled[offset], sampled[offset + 1]] + tableau_simu)
+                offset += 2
                 if adv_res[1] > mon_score_total:
                     gagne = False
                     break
@@ -258,10 +251,16 @@ class Simulateur:
         prob_victoire = (victoires / total_played * 100) if total_played > 0 else 0
         prob_egalite = (egalites / total_played * 100) if total_played > 0 else 0
         
+        repartition_gagnante = {}
+        if victoires > 0:
+            for i, count in enumerate(stats_mains):
+                if count > 0:
+                    repartition_gagnante[EvaluateurFast.RANGS_MAINS[i]] = (count / victoires) * 100
+        
         repartition_absolue = {}
         if total_played > 0:
             for i, count in enumerate(total_mains):
                 if count > 0:
                     repartition_absolue[EvaluateurFast.RANGS_MAINS[i]] = (count / total_played) * 100
         
-        return prob_victoire, prob_egalite, {}, repartition_absolue
+        return prob_victoire, prob_egalite, repartition_gagnante, repartition_absolue

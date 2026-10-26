@@ -53,17 +53,22 @@ def main():
 
     print("\nSIMULATION MONTE CARLO (10 000 itérations)...")
     profils = ['random'] * nb_adv
-    win, tie, _, mains_stats = Simulateur.simuler(ma_main, tableau, profils, exclues)
+    win, tie, mains_gagnantes, mains_absolues = Simulateur.simuler(ma_main, tableau, profils, exclues)
 
     print("\n--- PROBABILITÉS DE VICTOIRE ---")
     print(f"VICTOIRE : {win:.2f}%")
     print(f"ÉGALITÉ  : {tie:.2f}%")
     print(f"DÉFAITE  : {(100 - win - tie):.2f}%")
 
-    if mains_stats:
+    if mains_gagnantes:
         print("\n--- VOS MAINS GAGNANTES (Répartition) ---")
-        for nom, proc in sorted(mains_stats.items(), key=lambda x: x[1], reverse=True):
-            print(f"- {nom}: {proc:.1f}% des victoires")
+        for nom, proc in sorted(mains_gagnantes.items(), key=lambda x: x[1], reverse=True):
+            print(f"- {nom}: {proc:.1f}% de vos victoires")
+
+    if mains_absolues:
+        print("\n--- PROBABILITÉ DES MAINS OBTENUES (Toutes issues) ---")
+        for nom, proc in sorted(mains_absolues.items(), key=lambda x: x[1], reverse=True):
+            print(f"- {nom}: {proc:.1f}%")
 
 if __name__ == "__main__":
     try:
