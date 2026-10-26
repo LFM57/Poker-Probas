@@ -20,6 +20,8 @@ class Carte:
     }
 
     def __init__(self, valeur, couleur):
+        if valeur == '10':
+            valeur = 'T'
         if valeur not in self.VALEURS or couleur not in self.COULEURS:
             raise ValueError(f"Carte invalide : {valeur}{couleur}")
         self.valeur = valeur
@@ -39,6 +41,30 @@ class Carte:
         rank_mask = (1 << self.rang) << 16
         
         self.bit_value = prime | rank_shift | suit_shift | rank_mask
+
+    def __eq__(self, other):
+        if isinstance(other, Carte):
+            return self.bit_value == other.bit_value
+        return False
+
+    def __hash__(self):
+        return hash(self.bit_value)
+
+    @classmethod
+    def from_str(cls, s):
+        """Parse une chaîne comme 'Ah', '10s', 'Td' en objet Carte."""
+        if not s or not isinstance(s, str):
+            raise ValueError(f"Carte invalide : {s}")
+        s = s.strip()
+        if len(s) < 2:
+            raise ValueError(f"Carte invalide : {s}")
+        if s.upper().startswith('10'):
+            valeur = 'T'
+            couleur = s[2:].lower()
+        else:
+            valeur = s[0].upper()
+            couleur = s[1:].lower()
+        return cls(valeur, couleur)
 
     def __repr__(self):
         return f"{self.valeur}{self.couleur}"
@@ -63,5 +89,10 @@ class Paquet:
 
     def retirer_cartes(self, cartes_a_retirer):
         """Retire des cartes spécifiques du paquet (pour les mains connues)."""
-        str_cartes = [str(c) for c in cartes_a_retirer]
-        self.cartes = [c for c in self.cartes if str(c) not in str_cartes]
+        retirer_set = set()
+        for c in cartes_a_retirer:
+            if isinstance(c, Carte):
+                retirer_set.add(c)
+            elif isinstance(c, str):
+                retirer_set.add(Carte.from_str(c))
+        self.cartes = [c for c in self.cartes if c not in retirer_set]
