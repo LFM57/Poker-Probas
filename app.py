@@ -86,9 +86,10 @@ def simulate():
             'mains_gagnantes': mains_gagnantes,
             'mains_absolues': mains_absolues
         })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)})
     except Exception as e:
-        print("!!! ERREUR DURANT LA SIMULATION !!!")
-        traceback.print_exc() # Affiche l'erreur complète dans le terminal
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
