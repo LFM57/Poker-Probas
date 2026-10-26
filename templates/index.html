@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poker Pro Probas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body { background-color: #1a1a1a; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card-slot { width: 60px; height: 85px; border: 2px dashed #444; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin: 5px; cursor: pointer; font-weight: bold; font-size: 1.2rem; transition: all 0.2s; background: #252525; }
@@ -70,7 +71,10 @@
                     <div id="card-picker" class="d-flex flex-wrap justify-content-center">
                         <!-- Généré par JS -->
                     </div>
-                    <button class="btn btn-sm btn-outline-secondary mt-3" onclick="resetAll()">Réinitialiser tout</button>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-warning me-2" onclick="clearActiveSlot()">Effacer la carte active</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetAll()">Réinitialiser tout</button>
+                    </div>
                 </div>
             </div>
 
@@ -238,10 +242,34 @@
                 });
             }
 
-            // Tirages Groupés
+            // Tirages Groupés & Outs
             const tiragesDiv = document.getElementById('tirages-container');
+            const boardCards = selections.tableau.filter(c => c !== null);
+            let tiragesHtml = '';
+
+            // Affichage des outs directs s'ils existent
+            if (data.outs && data.outs.length > 0) {
+                const totalInconnues = 52 - 2 - boardCards.length - (selections.exclues ? selections.exclues.length : 0);
+                const pctOuts = ((data.outs.length / totalInconnues) * 100).toFixed(1);
+                tiragesHtml += `
+                    <div class="p-2 mb-3 rounded bg-dark border border-secondary">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-info">OUTS DIRECTS (${data.outs.length})</span>
+                            <span class="badge bg-info text-dark">${pctOuts}%</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            ${data.outs.map(c => {
+                                const s = c.slice(-1);
+                                const v = c.slice(0, -1);
+                                return `<span class="badge bg-light text-dark ${s}" style="font-size:0.85rem">${v}${suits[s] || s}</span>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             if (data.tirages && data.tirages.length > 0) {
-                tiragesDiv.innerHTML = `
+                tiragesHtml += `
                     <div class="p-2 mb-3 rounded bg-primary bg-opacity-10 border border-primary border-opacity-25">
                         <span class="small text-primary fw-bold">PROBABILITÉ DE PROGRESSION GLOBALE</span>
                         <div class="h3 mb-0">${data.proba_tirage}%</div>
@@ -250,15 +278,20 @@
                 `;
                 data.tirages.forEach(t => {
                     const icon = t.type === 'rank' ? '🎯' : '💧';
-                    tiragesDiv.innerHTML += `
+                    tiragesHtml += `
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-black">
                             <span>${icon} <strong>${t.nom}</strong></span>
                             <span class="badge bg-primary">${t.prob}%</span>
                         </div>`;
                 });
-            } else {
-                tiragesDiv.innerHTML = '<p class="small text-muted">Aucun tirage significatif détecté.</p>';
+            } else if (boardCards.length === 0) {
+                tiragesHtml += '<p class="small text-muted">Les tirages détaillés sont calculés au Flop et à la Turn.</p>';
+            } else if (boardCards.length === 5) {
+                tiragesHtml += '<p class="small text-muted">Tableau complet : main finale au showdown (aucune carte à venir).</p>';
+            } else if (!data.outs || data.outs.length === 0) {
+                tiragesHtml += '<p class="small text-muted">Aucun tirage significatif détecté.</p>';
             }
+            tiragesDiv.innerHTML = tiragesHtml;
 
             document.getElementById('win-val').innerText = data.win + '%';
             document.getElementById('win-bar').style.width = data.win + '%';
@@ -300,20 +333,20 @@
                 hmContainer.style.display = 'none';
             }
 
-            // Stats mains (VERSION SIMPLIFIÉE)
+            // Stats mains : Distribution des mains obtenues et des mains gagnantes
             const statsContainer = document.getElementById('mains-stats-container');
-            statsContainer.innerHTML = '<div class="row text-muted small mb-2"><div class="col-8">Type de Main Finale</div><div class="col-4 text-end">Probabilité</div></div>';
+            let statsHtml = '<div class="row text-muted small mb-2"><div class="col-8">Type de Main Finale</div><div class="col-4 text-end">Fréquence</div></div>';
             
-            const sortedTypes = Object.keys(data.mains_absolues).sort((a, b) => (data.mains_absolues[b] || 0) - (data.mains_absolues[a] || 0));
+            const sortedTypes = Object.keys(data.mains_absolues || {}).sort((a, b) => (data.mains_absolues[b] || 0) - (data.mains_absolues[a] || 0));
 
             sortedTypes.forEach(name => {
                 const abs = data.mains_absolues[name] || 0;
+                const winPct = (data.mains_gagnantes && data.mains_gagnantes[name]) ? data.mains_gagnantes[name].toFixed(1) : '0.0';
                 
-                // On affiche uniquement si la proba est > 0.1% pour éviter le bruit
                 if (abs > 0.1) {
-                    statsContainer.innerHTML += `
+                    statsHtml += `
                         <div class="d-flex justify-content-between small mb-1">
-                            <span>${name}</span>
+                            <span>${name} <span class="text-muted">(${winPct}% des victoires)</span></span>
                             <span class="fw-bold text-white">${abs.toFixed(1)}%</span>
                         </div>
                         <div class="progress bg-dark mb-2" style="height: 6px;">
@@ -321,10 +354,35 @@
                         </div>`;
                 }
             });
+            statsContainer.innerHTML = statsHtml;
+        }
+
+        function clearActiveSlot() {
+            if (!activeSlot) return;
+            const oldCard = selections[activeSlot.type][activeSlot.index];
+            if (oldCard) {
+                const pickDiv = document.getElementById(`pick-${oldCard}`);
+                if (pickDiv) pickDiv.classList.remove('used');
+                selections[activeSlot.type][activeSlot.index] = null;
+                const slot = document.querySelector('.card-slot.active');
+                if (slot) {
+                    slot.innerHTML = '?';
+                    slot.className = 'card-slot active';
+                }
+            }
         }
 
         function resetAll() {
-            location.reload();
+            selections = { ma_main: [null, null], tableau: [null, null, null, null, null], exclues: [] };
+            document.querySelectorAll('.card-slot').forEach(s => {
+                s.innerHTML = '?';
+                s.className = 'card-slot';
+            });
+            document.querySelectorAll('.card-picker-item').forEach(p => p.classList.remove('used'));
+            document.getElementById('results-area').style.display = 'none';
+            document.getElementById('placeholder-results').style.display = 'block';
+            const firstSlot = document.querySelector('#ma-main-slots .card-slot');
+            if (firstSlot) setActiveSlot(firstSlot, 'ma_main', 0);
         }
 
         initPicker();
