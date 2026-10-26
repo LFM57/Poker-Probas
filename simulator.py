@@ -138,18 +138,68 @@ class Simulateur:
         return impacts
 
     @staticmethod
-    def calculer_outs(ma_main, tableau, cartes_exclues):
-        if len(tableau) >= 5: return []
-        cartes_connues = list(ma_main) + list(tableau) + list(cartes_exclues)
-        paquet = Paquet()
-        paquet.cartes = [c for c in paquet.cartes if not any(c.valeur == ck.valeur and c.couleur == ck.couleur for ck in cartes_connues)]
+    def _est_feature_tableau(tableau, carte_test, best_type):
+        """Vérifie si la combinaison atteinte existe déjà sur le tableau seul avec la carte test."""
+        board_cards = tableau + [carte_test]
+        ranks = [c.rang for c in board_cards]
+        counts = {}
+        for r in ranks: counts[r] = counts.get(r, 0) + 1
+        max_c = max(counts.values()) if counts else 0
+        pairs = [r for r, c in counts.items() if c >= 2]
         
-        score_actuel = EvaluateurFast.evaluer_7_cartes(ma_main + tableau)
+        if max_c >= 4 and best_type <= 7: return True
+        if max_c >= 3 and best_type <= 3: return True
+        if len(pairs) >= 2 and best_type <= 2: return True
+        if len(pairs) >= 1 and best_type <= 1: return True
+        
+        suits = [c.couleur for c in board_cards]
+        suit_counts = {s: suits.count(s) for s in set(suits)}
+        if max(suit_counts.values()) >= 5 and best_type <= 5: return True
+        
+        if len(board_cards) >= 5:
+            b_ranks = sorted(list(set(ranks)), reverse=True)
+            if 12 in b_ranks: b_ranks.append(-1)
+            for i in range(len(b_ranks) - 4):
+                if b_ranks[i] - b_ranks[i+4] == 4 and best_type <= 4:
+                    return True
+        return False
+
+    @staticmethod
+    def calculer_outs(ma_main, tableau, cartes_exclues=None):
+        """Calcule les outs réels améliorant la catégorie de main avec les cartes du joueur."""
+        if len(tableau) >= 5 or len(tableau) < 3: return []
+        if cartes_exclues is None: cartes_exclues = []
+        
+        cartes_connues = set(ma_main) | set(tableau) | set(cartes_exclues)
+        paquet = [c for c in Paquet().cartes if c not in cartes_connues]
+        
+        current_type, current_score = EvaluateurFast.evaluer_7_cartes(ma_main + tableau)
         outs = []
-        for carte_test in paquet.cartes:
-            nouveau_score = EvaluateurFast.evaluer_7_cartes(ma_main + tableau + [carte_test])
-            if nouveau_score[1] > score_actuel[1]:
-                outs.append(carte_test)
+        
+        for carte_test in paquet:
+            new_cards = ma_main + tableau + [carte_test]
+            best_score = -1
+            best_type = -1
+            best_combo = None
+            for combo in combinations(new_cards, 5):
+                s, t = EvaluateurFast.evaluer_5_ints([c.bit_value for c in combo])
+                tot = (t << 24) | s
+                if tot > best_score:
+                    best_score = tot
+                    best_type = t
+                    best_combo = combo
+                    
+            # Amélioration stricte de la catégorie de main requise
+            if best_type <= current_type:
+                continue
+            if carte_test not in best_combo:
+                continue
+            if not any(h in best_combo for h in ma_main):
+                continue
+            if Simulateur._est_feature_tableau(tableau, carte_test, best_type):
+                continue
+                
+            outs.append(carte_test)
         return outs
 
     @staticmethod
