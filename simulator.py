@@ -81,42 +81,52 @@ class Simulateur:
     @staticmethod
     def calculer_heatmap(ma_main, tableau, cartes_exclues, profils):
         """Estime l'impact de chaque carte future sur l'équité (Multi-joueurs)."""
-        if len(tableau) >= 5: return {}
+        if len(tableau) >= 5 or len(tableau) < 3:
+            return {}
         
         nb_adv = len(profils)
-        cartes_connues = list(ma_main) + list(tableau) + list(cartes_exclues)
+        if nb_adv < 1:
+            return {}
+            
+        cartes_connues = set(ma_main) | set(tableau) | set(cartes_exclues)
         paquet = Paquet()
-        cartes_testables = [c for c in paquet.cartes if not any(c.valeur == ck.valeur and c.couleur == ck.couleur for ck in cartes_connues)]
+        cartes_testables = [c for c in paquet.cartes if c not in cartes_connues]
         
         impacts = {}
-        # On réduit les itérations pour garder une interface fluide
-        base_iterations = 150 if nb_adv <= 3 else 80 
+        is_flop = (len(tableau) == 3)
+        base_iterations = 80 if is_flop else (120 if nb_adv <= 3 else 80)
+        needed_sample = (2 * nb_adv + 1) if is_flop else (2 * nb_adv)
         
         for carte_future in cartes_testables:
             tableau_futur = tableau + [carte_future]
-            victoires = 0
             pool = [c for c in cartes_testables if c != carte_future]
-            
-            # Calcul du score héro une seule fois pour ce tableau futur
-            mon_score = EvaluateurFast.evaluer_7_cartes(ma_main + tableau_futur)[1]
+            if len(pool) < needed_sample:
+                break
+                
+            victoires = 0
+            mon_score_turn = None
+            if not is_flop:
+                mon_score_turn = EvaluateurFast.evaluer_7_cartes(ma_main + tableau_futur)[1]
 
             for _ in range(base_iterations):
-                random.shuffle(pool)
-                idx = 0
-                mains_actives = []
-                for _ in range(nb_adv):
-                    if idx + 2 > len(pool): break
-                    mains_actives.append([pool[idx], pool[idx+1]])
-                    idx += 2
+                sampled = random.sample(pool, needed_sample)
+                if is_flop:
+                    river_card = sampled[-1]
+                    full_board = tableau_futur + [river_card]
+                    hero_score = EvaluateurFast.evaluer_7_cartes(ma_main + full_board)[1]
+                else:
+                    full_board = tableau_futur
+                    hero_score = mon_score_turn
                 
                 gagne = True
                 partage = False
-                for m_adv in mains_actives:
-                    adv_score = EvaluateurFast.evaluer_7_cartes(m_adv + tableau_futur)[1]
-                    if adv_score > mon_score:
+                for i in range(nb_adv):
+                    m_adv = [sampled[2 * i], sampled[2 * i + 1]]
+                    adv_score = EvaluateurFast.evaluer_7_cartes(m_adv + full_board)[1]
+                    if adv_score > hero_score:
                         gagne = False
                         break
-                    elif adv_score == mon_score:
+                    elif adv_score == hero_score:
                         partage = True
                 
                 if gagne:
