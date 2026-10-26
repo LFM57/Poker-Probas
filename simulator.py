@@ -16,22 +16,57 @@ class Simulateur:
         counts_c = {k: couleurs.count(k) for k in set(couleurs)}
         max_c = max(counts_c.values()) if counts_c else 0
         
-        if max_c >= 3: alerts.append("Danger Couleur (3+ cartes)")
-        elif max_c == 2: alerts.append("Tirage Couleur possible")
+        if max_c >= 5: alerts.append("Couleur sur le tableau")
+        elif max_c == 4: alerts.append("Danger Couleur (4 cartes)")
+        elif max_c == 3: alerts.append("Tirage Couleur / Danger (3 cartes)")
+        elif max_c == 2 and len(tableau) <= 4: alerts.append("Tirage Couleur possible")
             
         rangs = sorted([c.rang for c in tableau])
         counts_r = {k: rangs.count(k) for k in set(rangs)}
-        max_r = max(counts_r.values())
-        if max_r >= 2: alerts.append("Paire sur le tableau")
-        if max_r >= 3: alerts.append("Brelan sur le tableau")
+        max_r = max(counts_r.values()) if counts_r else 0
+        pairs_count = sum(1 for c in counts_r.values() if c == 2)
+
+        if max_r == 4:
+            alerts.append("Carré sur le tableau")
+        elif max_r == 3 and pairs_count >= 1:
+            alerts.append("Full sur le tableau")
+        elif max_r == 3:
+            alerts.append("Brelan sur le tableau")
+        elif pairs_count >= 2:
+            alerts.append("Double Paire sur le tableau")
+        elif max_r == 2:
+            alerts.append("Paire sur le tableau")
         
         rangs_unique = sorted(list(set(rangs)))
-        connected_count = 0
-        for i in range(len(rangs_unique) - 2):
-            if rangs_unique[i+2] - rangs_unique[i] <= 4:
-                connected_count = 3
+        if 12 in rangs_unique:
+            rangs_unique = sorted(rangs_unique + [-1])
+            
+        has_made_st8 = False
+        for i in range(len(rangs_unique) - 4):
+            if rangs_unique[i+4] - rangs_unique[i] == 4:
+                has_made_st8 = True
                 break
-        if connected_count >= 3: alerts.append("Tirage Quinte possible")
+
+        has_4_st8 = False
+        if not has_made_st8:
+            for i in range(len(rangs_unique) - 3):
+                if rangs_unique[i+3] - rangs_unique[i] <= 4:
+                    has_4_st8 = True
+                    break
+
+        has_3_st8 = False
+        if not has_made_st8 and not has_4_st8 and len(tableau) <= 4:
+            for i in range(len(rangs_unique) - 2):
+                if rangs_unique[i+2] - rangs_unique[i] <= 4:
+                    has_3_st8 = True
+                    break
+
+        if has_made_st8:
+            alerts.append("Quinte sur le tableau")
+        elif has_4_st8:
+            alerts.append("Danger Quinte (4 cartes connectées)")
+        elif has_3_st8:
+            alerts.append("Tirage Quinte possible")
         
         return alerts
 
