@@ -239,6 +239,11 @@ class Simulateur:
 
     @staticmethod
     def simuler(ma_main, tableau, profils, cartes_exclues=None, iterations=10000):
+        """Exécute une simulation Monte Carlo de l'équité et des distributions de mains.
+
+        Retourne un tuple:
+            (prob_victoire, prob_egalite, repartition_gagnante, repartition_absolue)
+        """
         victoires = 0
         egalites = 0
         stats_mains = [0] * 9

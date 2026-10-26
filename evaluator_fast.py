@@ -24,17 +24,17 @@ class EvaluateurFast:
 
     @staticmethod
     def evaluer_7_cartes(cartes):
-        """Prend 7 objets Carte et retourne le score (Rang, Tie-Breaker)."""
+        """Prend 5 à 7 objets Carte et retourne le score (Rang, Tie-Breaker)."""
         # On passe directement aux entiers
         ints = [c.bit_value for c in cartes]
         
         meilleur_score = -1
         meilleur_type = -1
         
-        # On teste toutes les combinaisons de 5 cartes parmi 7
+        # On teste toutes les combinaisons de 5 cartes parmi les cartes fournies
         for combo in combinations(ints, 5):
             score, type_main = EvaluateurFast.evaluer_5_ints(combo)
-            # Le score combiné : (Type << 20) | Score_Interne
+            # Le score combiné : (Type << 24) | Score_Interne
             total = (type_main << 24) | score
             if total > meilleur_score:
                 meilleur_score = total

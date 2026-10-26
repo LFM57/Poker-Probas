@@ -31,7 +31,7 @@ Run the text-based analyzer:
 ```bash
 python main.py
 ```
-Follow the prompts to enter your hand (e.g., `Ah Kd`) and the board.
+Follow the prompts to enter your hand (e.g., `Ah Kd` or `10s 10h`), the board (0, 3, 4, or 5 cards), and dead/folded cards.
 
 ### 2. Web Application
 Start the Flask server:
@@ -39,6 +39,12 @@ Start the Flask server:
 python app.py
 ```
 Open your browser and go to `http://127.0.0.1:5000`.
+
+### 3. Running Unit Tests
+Run the automated test suite to verify hand evaluations, outs calculations, Monte Carlo simulations, and API endpoints:
+```bash
+python -m unittest test_logic.py
+```
 
 ## Project Structure
 
